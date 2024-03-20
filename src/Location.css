@@ -1,0 +1,8 @@
+.location-selector {
+    background-color: lime;
+    border-radius: 5px;
+}
+
+.location-selector option:hover {
+    background-color: lime;
+}
