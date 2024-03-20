@@ -2,21 +2,21 @@ import React, { createContext, useReducer } from 'react';
 
 // 5. The reducer - this is used to update the state, based on the action
 export const AppReducer = (state, action) => {
-    let budget = 0;
+    let new_expenses = [];
     switch (action.type) {
         case 'ADD_EXPENSE':
             let total_budget = 0;
             total_budget = state.expenses.reduce(
                 (previousExp, currentExp) => {
                     return previousExp + currentExp.cost
-                },0
+                }, 0
             );
             total_budget = total_budget + action.payload.cost;
             action.type = "DONE";
-            if(total_budget <= state.budget) {
+            if (total_budget <= state.budget) {
                 total_budget = 0;
-                state.expenses.map((currentExp)=> {
-                    if(currentExp.name === action.payload.name) {
+                state.expenses.map((currentExp) => {
+                    if (currentExp.name === action.payload.name) {
                         currentExp.cost = action.payload.cost + currentExp.cost;
                     }
                     return currentExp
@@ -30,43 +30,89 @@ export const AppReducer = (state, action) => {
                     ...state
                 }
             }
-            case 'RED_EXPENSE':
-                const red_expenses = state.expenses.map((currentExp)=> {
-                    if (currentExp.name === action.payload.name && currentExp.cost - action.payload.cost >= 0) {
-                        currentExp.cost =  currentExp.cost - action.payload.cost;
-                        budget = state.budget + action.payload.cost
+        case 'DECREASE_EXPENSE':
+            let expenseFound = false;
+            state.expenses.map((expense) => {
+                if (expense.name === action.payload.name) {
+                    expenseFound = true;
+                    expense.cost = expense.cost - action.payload.cost;
+                    if (expense.cost < 0) {
+                        expense.cost = 0;
                     }
-                    return currentExp
-                })
-                action.type = "DONE";
-                return {
-                    ...state,
-                    expenses: [...red_expenses],
-                };
-            case 'DELETE_EXPENSE':
-            action.type = "DONE";
-            state.expenses.map((currentExp)=> {
-                if (currentExp.name === action.payload) {
-                    budget = state.budget + currentExp.cost
-                    currentExp.cost =  0;
                 }
-                return currentExp
-            })
+                new_expenses.push(expense);
+                return true;
+            });
+
+            if (!expenseFound) {
+                alert("Expense not found!");
+            }
+
+            state.expenses = new_expenses;
             action.type = "DONE";
             return {
                 ...state,
-                budget
             };
-        case 'SET_BUDGET':
+        case 'ADD_QUANTITY':
+            let updatedqty = false;
+            state.expenses.map((expense) => {
+                if (expense.name === action.payload.name) {
+                    expense.quantity = expense.quantity + action.payload.quantity;
+                    updatedqty = true;
+                }
+                new_expenses.push(expense);
+                return true;
+            })
+            state.expenses = new_expenses;
             action.type = "DONE";
-            state.budget = action.payload;
+            return {
+                ...state,
+            };
+        case 'DECREASE_EXPENSE':
+            const updatedExpenses = state.expenses.map((expense) => {
+                if (expense.name === action.payload.name) {
+                    const newCost = expense.cost - action.payload.cost;
+                    return { ...expense, cost: newCost < 0 ? 0 : newCost };
+                }
+                return expense;
+            });
 
             return {
                 ...state,
+                expenses: updatedExpenses,
+                action: "DONE" // I noticed that you were setting action.type to "DONE" in other cases, so I included it here as well.
             };
-        case 'CHG_CURRENCY':
+
+        case 'RED_QUANTITY':
+            state.expenses.map((expense) => {
+                if (expense.name === action.payload.name) {
+                    expense.quantity = expense.quantity - action.payload.quantity;
+                }
+                expense.quantity = expense.quantity < 0 ? 0 : expense.quantity;
+                new_expenses.push(expense);
+                return true;
+            })
+            state.expenses = new_expenses;
             action.type = "DONE";
-            state.currency = action.payload;
+            return {
+                ...state,
+            };
+        case 'DELETE_EXPENSE':
+            state.expenses.map((expense) => {
+                if (expense.name === action.payload.name) {
+                    expense.quantity = 0;
+                }
+                new_expenses.push(expense);
+                return true;
+            })
+            state.expenses = new_expenses;
+            action.type = "DONE";
+            return {
+                ...state,
+            };
+        case 'CHG_LOCATION':
+            action.type = "DONE";
+            state.Location = action.payload;
             return {
                 ...state
             }
@@ -86,7 +132,7 @@ const initialState = {
         { id: "Human Resource", name: 'Human Resource', cost: 40 },
         { id: "IT", name: 'IT', cost: 500 },
     ],
-    currency: '£'
+    Location: '£'
 };
 
 // 2. Creates the context this is the thing our components import and use to get the state
@@ -100,7 +146,7 @@ export const AppProvider = (props) => {
     let remaining = 0;
 
     if (state.expenses) {
-            const totalExpenses = state.expenses.reduce((total, item) => {
+        const totalExpenses = state.expenses.reduce((total, item) => {
             return (total = total + item.cost);
         }, 0);
         remaining = state.budget - totalExpenses;
@@ -110,10 +156,11 @@ export const AppProvider = (props) => {
         <AppContext.Provider
             value={{
                 expenses: state.expenses,
+                action: state.action, // Update to action
                 budget: state.budget,
                 remaining: remaining,
                 dispatch,
-                currency: state.currency
+                Location: state.Location
             }}
         >
             {props.children}
